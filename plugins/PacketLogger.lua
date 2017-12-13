@@ -58,7 +58,7 @@ function PacketLogger:init()
     end;
 
     -- Set default appenders
-    self:AddAppender({PacketLogger.FileAppender, PacketLogger.ScreenAppender});
+    self:AddAppender({PacketLogger.FileAppender, PacketLogger.SplitFileAppender, PacketLogger.ScreenAppender});
 
     -- Outgoing packets unblock
     for id in pairs(self.packetsFormat.client) do UnblockOutgoingPacket(tonumber(string.sub(id, 0, 2), 16)); end;
@@ -110,12 +110,13 @@ end;
 -- @param data Log data
 --
 function PacketLogger:ScreenAppender(source, data)
+    assert(IsPremium(), "ScreenAppender requires L2Tower Premium license.");
     ShowOnScreen(1, 500, 1, string.format("%s (%s bytes) [%s,%s]:\n%s\n\n",
         data.sender,
         tostring(data.size),
         data.id,
         (data.info == nil) and "Unknown" or data.info,
-        data.hexdata
+        data.hexdata:gsub('('.. ('...'):rep(16) .. ')', "%1\n")
     ));
 end;
 
@@ -148,6 +149,41 @@ function PacketLogger:FileAppender(source, data)
 end;
 
 --
+-- Split file appender - append log data into different log files
+--
+-- @todo Keep the open file handler out of this function and use setvbuf(no) + flush. Close fh when turn off the plugin
+-- @param channel The main source of the log-data (server, client)
+-- @param data Log data
+--
+function PacketLogger:SplitFileAppender(source, data)
+
+    if (data.info ~= nil) then
+        local packetName;
+        assert(data.info:gsub("(%a+)%:.*"  , function(type, key)
+            packetName = type;
+        end), "Error parsing packet description");
+
+        local tempLogFile = GetDir() .. 'temp\\packets-' .. source .. '-' .. packetName .. '.log'
+
+        local fh = assert(io.open(tempLogFile, "a"), string.format(ERROR_INVALID_LOGFILE, tempLogFile));
+
+        if (nil ~= fh) then
+
+            fh:write(string.format("[%s] %s (%s bytes) [%s,%s]:\n%s\n\n",
+                os.date("%d %b %H:%M:%S"),
+                data.sender,
+                tostring(data.size),
+                data.id,
+                (data.info == nil) and "Unknown" or data.info,
+                data.hexdata
+            ));
+
+            fh:close();
+        end
+    end;
+end;
+
+--
 -- Dispatch log data
 --
 -- @param channel The main source of the log-data (server, client)
@@ -170,6 +206,8 @@ function PacketLogger:PacketHandler(source, packet)
 
     if nil ~= packet then
 
+        packet:SetOffset(0);
+
         -- Read raw hex data
         local data, size = "", packet:Size();
         if (size > 0) then
@@ -185,6 +223,10 @@ function PacketLogger:PacketHandler(source, packet)
         -- Finding packet description
         local id = string.format("%02X",packet:GetID());
         local dpval = self.packetsFormat[source][id];
+        if (nil == dpval and packet:GetSubID() > 0 and packet:GetSubID() < 0xFFFF) then
+            id = id .. string.format("%02X",packet:GetSubID());
+            dpval = self.packetsFormat[source][id];
+        end;
 
         if (nil == dpval) then
             -- try to get the subID (1, 2 or 3 bytes)
