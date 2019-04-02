@@ -31,3 +31,5 @@ Latest version: http://update.l2tower.eu/update/version
 Version index: http://update.l2tower.eu/update/1.4.3.143/L2Tower.Update.xml
 
 Download file by ID: http://update.l2tower.eu/update/1.4.3.143/{ID}
+
+X86 Opcodes and Instructions: http://ref.x86asm.net/coder32-abc.html
