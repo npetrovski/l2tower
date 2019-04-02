@@ -22,3 +22,12 @@ B8 23 23 31 52     mov     eax, 52312323h
 3D 45 53 34 31     cmp     eax, 31345345h
 ```
 
+## Links
+
+Create license form: http://l2tower.eu/api/create.php
+
+Latest version: http://update.l2tower.eu/update/version
+
+Version index: http://update.l2tower.eu/update/1.4.3.143/L2Tower.Update.xml
+
+Download file by ID: http://update.l2tower.eu/update/1.4.3.143/{ID}
