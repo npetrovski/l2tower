@@ -1,4 +1,4 @@
-# l2tower
+# L2Tower
 L2Tower scripts and plugins
 
 
