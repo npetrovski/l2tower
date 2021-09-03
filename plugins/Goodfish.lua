@@ -19,24 +19,30 @@ function OnIncomingPacket(packet)
 		-- ExFishingHpRegen
 		--
 		if (_id == 0xFE and _sub == 0x28) then
-			packet:SetOffset(12);
-			local mode = packet:ReadInt(1);
-			packet:SetOffset(19);
-			local deceptive = packet:ReadInt(1);
-			
-			if (deceptive == 0) then
-				if (mode == 0) then
-					UsePump()
+		
+			packet:SetOffset(0);
+			local _objId = packet:ReadInt(4);
+			if (_objId == GetMe():GetId()) then
+				
+				packet:SetOffset(12);
+				local mode = packet:ReadInt(1);
+				packet:SetOffset(19);
+				local deceptive = packet:ReadInt(1);
+				
+				if (deceptive == 0) then
+					if (mode == 0) then
+						UsePump()
+					else
+						UseReeling()
+					end
 				else
-					UseReeling()
-				end
-			else
-				if (mode == 0) then
-					UseReeling()
-				else
-					UsePump()
-				end
+					if (mode == 0) then
+						UseReeling()
+					else
+						UsePump()
+					end
 
+				end
 			end
 		end
 		
@@ -44,7 +50,11 @@ function OnIncomingPacket(packet)
 		-- ExFishingEnd
 		--
 		if (_id == 0xFE and _sub == 0x1F) then
-			UseFishing()
+			packet:SetOffset(0);
+			local _objId = packet:ReadInt(4);
+			if (_objId == GetMe():GetId()) then
+				UseFishing()
+			end
 		end
 	end
 end;
