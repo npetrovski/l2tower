@@ -1,11 +1,26 @@
-IsEnabled = false;
+local IsEnabled = false;
+local PLUGIN_NAME = 'Goodfish';
+local PLUGIN_DESCRIPTION = [[
 
-function OnCreate() this:RegisterCommand("goodfish", CommandChatType.CHAT_ALLY, CommandAccessLevel.ACCESS_ME); end;
+
+===============================
+= Use .goodfish command to enable or disable =
+= the auto-fishing mode. Make sure you have   =
+= equiped a rod and a lure.                             =
+===============================
+
+]]
+
+function OnCreate() 
+	this:RegisterCommand("goodfish", CommandChatType.CHAT_ALLY, CommandAccessLevel.ACCESS_ME); 
+	ShowToClient(PLUGIN_NAME, PLUGIN_DESCRIPTION, 0x05); 
+end;
 
 function OnDestroy() this:UnregisterCommand("goodfish"); end;
 
 function OnCommand_goodfish(vCommandChatType, vNick, vCommandParam)
     IsEnabled = not IsEnabled;
+	ShowToClient(PLUGIN_NAME, (not IsEnabled) and "Disabled" or "Enabled");
 	UseFishing()
 end;
 
