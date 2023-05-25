@@ -22,6 +22,25 @@ B8 23 23 31 52     mov     eax, 52312323h
 3D 45 53 34 31     cmp     eax, 31345345h
 ```
 
+OR without checking for `license.cfg`
+
+```
+== Original code
+74 12                JZ         LAB_104baba0
+a1 20 72 64 10       MOV        EAX,[PTR_DAT_10647220]
+c7 00 23 24 23 41    MOV        dword ptr [EAX]=>DAT_1064721c,0x41232423
+b8 23 24 23 41       MOV        EAX,0x41232423
+eb 66                JMP        LAB_104bac06
+
+== Replaced with
+90                   NOP
+90                   NOP
+a1 20 72 64 10       MOV        EAX,[DAT_10647220]
+c7 00 23 24 23 41    MOV        dword ptr [EAX]=>DAT_1064721c,0x41232423
+e9 60 04 00 00       JMP        LAB_104baffe
+eb 66                JMP        LAB_104bac06
+```
+
 ## Links
 
 Create license form: http://l2tower.eu/api/create.php
