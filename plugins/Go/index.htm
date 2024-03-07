@@ -1,0 +1,44 @@
+<table border="0" cellpadding="10" cellspacing="0" width="280" height="358" background="L2UI_CH3.refinewnd_back_Pattern">
+    <tr>
+        <td valign="top" align="center">
+            <table border="0" cellpadding="5" cellspacing="0" width="270">
+                <tr>
+                    <td align="center" width="220">
+                        <font name="hs9">List of destinations</font>
+                    </td>
+                    <td valign="top" align="left" width="60">
+                        <button value="Add" action="{*add_new_action*}" width="45" height="18" back="L2UI_CT1.Button_DF_Down" fore="L2UI_CT1.Button_DF">
+                    </td>
+                </tr>
+            </table><br1>
+            <img src="sek.cbui355" width="260" height="2">
+        <td>
+    </tr>
+    <tr>
+        <td valign="top" align="center">
+            <table border="0" cellpadding="4" cellspacing="4" width="250">
+            <!-- {% if #rows > 0 then %} -->
+            <!-- {% for _, row in ipairs(rows) do %} -->
+                <tr>
+                    <td valign="top" align="left" height="18" width="20">
+                        <img src="L2UI_CT1.Button_DF_Right" width="16" height="16">
+                    </td>
+                    <td align="left" width="200">
+                        <font color=""><a action="{*row["action"]*}">{{row["name"]}}</a></font>
+                    </td>
+                    <td valign="top" align="left" width="2">
+                        <button action="{*row["remove_action"]*}" width="16" height="16" back="L2UI_CT1.Button_DF_Delete_Down" fore="L2UI_CT1.Button_DF_Delete">
+                    </td>
+                </tr>
+            <!-- {% end %} -->
+            <!-- {% else %} -->
+                <tr>
+                    <td valign="top" align="center">
+                        <font color="">No items in the list</font>
+                    </td>
+                </tr>
+            <!-- {% end %} -->
+            </table>
+        </td>
+    </tr>
+</table>
