@@ -18,20 +18,28 @@ _G["OnCommand_" .. PLUGIN_NAME] = function(vCommandChatType, vNick, vCommandPara
 
 		if (command == "jump") then
 			local id = tostring(vCommandParam:GetParam(1):GetStr(true));
-			local coords = findCoordsById(data, id);
-			if (nil ~= coords) then
-				epicPort(coords.x, coords.y, coords.z);
+			local rec = findCoordsById(data, id);
+			if (nil ~= rec) then
+				epicPort(rec.x, rec.y, rec.z);
 			end;
 		end;
 
 		if (command == "remove") then
 			local id = tostring(vCommandParam:GetParam(1):GetStr(true));
-			removeElement(data, id);
+			local confirmed = tonumber(vCommandParam:GetParam(2):GetInt());
+			if (1 == confirmed) then
+				removeElement(data, id);
+				data = loadCoords();
+			else
+				local rec = findCoordsById(data, id);
+				if (nil ~= rec) then
+					return ShowRemoveDialog("remove", rec);
+				end;
+			end
 		end;
 
 		if (command == "add") then
-			ShowAddDialog("add");
-			return;
+			return ShowAddDialog("add");
 		end;
 
 		if (command == "save") then
@@ -40,7 +48,7 @@ _G["OnCommand_" .. PLUGIN_NAME] = function(vCommandChatType, vNick, vCommandPara
 		end;
 	end;
 		
-	ShowMainDialog("index", data);
+	ShowMainDialog("main", data);
 end;
 
 function OnLTick500ms()
@@ -50,11 +58,29 @@ function OnLTick500ms()
     end;
 end;
 
-function ShowAddDialog(page)
+function ShowRemoveDialog(page, rec)
+	local ctx = {
+		["layout"] = {
+			["title"] = "Remove Location",
+			["btn_label"] = "Back",
+			["btn_action"] = buildAction()
+		},
+		["rec"] = rec,
+		["remove_action"] = buildAction("remove", rec.id, 1)
+	};
+	ShowPage(page, ctx);
+end;
+
+function ShowAddDialog(page, defaultName)
 	local loc = GetMe():GetLocation();
 	local ctx = {
-		["back_action"] = buildAction(),
+		["layout"] = {
+			["title"] = "Add Current Location",
+			["btn_label"] = "Back",
+			["btn_action"] = buildAction()
+		},
 		["save_action"] = buildAction("save", "$name"),
+		["refresh_action"] = buildAction("add"),
 		["loc"] = {
 			x = math.floor(loc.X),
 			y = math.floor(loc.Y),
@@ -66,7 +92,11 @@ end;
 
 function ShowMainDialog(page, data)
 	local ctx = {
-		["add_new_action"] = buildAction("add"),
+		["layout"] = {
+			["title"] = "Locations List",
+			["btn_label"] = "Add",
+			["btn_action"] = buildAction("add")
+		},
 		["rows"] = {}
 	};
 	if (#data > 0) then
@@ -75,7 +105,7 @@ function ShowMainDialog(page, data)
 			table.insert(ctx["rows"], {
 				["name"] = tostring(data[c][2]),
 				["action"] = buildAction("jump", id),
-				["remove_action"] = buildAction("remove", id)
+				["remove_action"] = buildAction("remove", id, 0)
 			});
 		end;
 	end;
@@ -83,9 +113,13 @@ function ShowMainDialog(page, data)
 end;
 
 function ShowPage(page, context)
-	local file = TEMPLATES_FOLDER .. '\\' .. page .. '.htm';
+	local layoutFile = TEMPLATES_FOLDER .. '\\layout.htm';
+	local file = TEMPLATES_FOLDER .. '\\' .. page .. '.view.htm';
+	local layout = template.new(layoutFile);
+	context.layout.view = template.render(file, context, "no-cache");
+
 	local html = THtmlGenerator("Teleport To Location");
-	html:AddHtml(template.render(file, context, "no-cache"));
+	html:AddHtml(layout:render(context.layout));
 	HtmlBuild = html:GetString();
 	ShowHtmlStatus = true;
 end
@@ -130,11 +164,14 @@ end
 
 function loadCoords()
 	data = {};
-	for line in io.lines(CSV_FILE) do
-		if (nil ~= line) then
-			table.insert(data, splitWithComma(line));
-		end;
-	end
+	local f = io.open(CSV_FILE, "r")
+	if (f ~= nil and io.close(f)) then
+		for line in io.lines(CSV_FILE) do
+			if (nil ~= line) then
+				table.insert(data, splitWithComma(line));
+			end;
+		end
+	end;
 	return data;
 end;
 
@@ -149,7 +186,13 @@ end;
 function findCoordsById(data, id)
 	for i = 1, #data do
 	  if (data[i][1] == id) then
-		return { x = data[i][3], y = data[i][4], z = data[i][5] };
+		return { 
+			id = data[i][1], 
+			name = data[i][2], 
+			x = data[i][3], 
+			y = data[i][4], 
+			z = data[i][5] 
+		};
 	  end;
 	end;
 	return nil;

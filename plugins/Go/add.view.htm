@@ -1,0 +1,32 @@
+<table border="0" cellpadding="0" cellspacing="4" height="80" background="L2UI_CT1.Windows.Windows_DF_TooltipBG">
+    <tr>
+        <td>
+            <table border="0" cellpadding="5" cellspacing="4" width="260">
+                <tr>
+                    <td width="55">Location : </td>
+                    <td align="left">
+                        <font color="882323">{{loc["x"]}}, {{loc["y"]}}, {{loc["z"]}}</font>
+                    </td>
+                    <td>
+                        <button action="{*refresh_action*}" width="16" height="16" back="L2UI_CH3.shortcut_rotate_down" fore="L2UI_CH3.shortcut_rotate">
+                    </td>
+                </tr>
+            </table>
+        </td>
+    </tr>
+    <tr>
+        <td>
+            <table border="0" cellpadding="5" cellspacing="4" width="240">
+                <tr>
+                    <td width="55">Name : </td>
+                    <td align="left">
+                        <edit var="name" width="120" height="15" length="15">
+                    </td>
+                    <td align="left">
+                        <button value="Save" action="{*save_action*}" width="45" height="22" back="L2UI_CT1.Button_DF_Down" fore="L2UI_CT1.Button_DF">
+                    </td>
+                </tr>
+            </table>
+        </td>
+    </tr>
+</table>

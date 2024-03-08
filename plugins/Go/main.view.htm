@@ -1,0 +1,39 @@
+<table border="0" cellpadding="4" cellspacing="2">
+<!-- {% if #rows > 0 then %} -->
+<!-- {% for _, row in ipairs(rows) do %} -->
+    <tr>
+        <td valign="top" align="left" height="18" width="20">
+            <img src="L2UI_CT1.Button_DF_Right" width="16" height="16">
+        </td>
+        <td align="left" width="200">
+            <font color=""><a action="{*row["action"]*}">{{row["name"]}}</a></font>
+        </td>
+        <td valign="top" align="left" width="2">
+            <button action="{*row["remove_action"]*}" width="16" height="16" back="L2UI_CT1.Button_DF_Delete_Down" fore="L2UI_CT1.Button_DF_Delete">
+        </td>
+    </tr>
+<!-- {% end %} -->
+<!-- {% else %} -->
+    <tr>
+        <td align="center" width="220">
+            <table border="0" cellpadding="4" cellspacing="12">
+                <tr>
+                    <td align="center" width="40">
+                        <img src="L2UI_CT1.MiniMap_DF_FlagIcon_Blue" width="32" height="32">
+                    </td>
+                </tr>
+                <tr>
+                    <td align="center" width="220">
+                        <font color="ff0000">Ooops. No items in the list.</font>
+                    </td>
+                </tr>
+                <tr>
+                    <td align="center" width="220">
+                        Please, use <font color="ffff00">&quot;Add&quot;</font> button above to keep the current location.
+                    </td>
+                </tr>
+            </table>
+        </td>
+    </tr>
+<!-- {% end %} -->
+</table>
