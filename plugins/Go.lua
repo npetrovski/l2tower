@@ -1,61 +1,131 @@
+--
+-- This script is an illustrative example, designed to demonstrate two key concepts. 
+-- The first involves utilizing a template engine to construct the UI for an 
+-- L2Tower plugin, while the second concept focuses on leveraging the Tutorial 
+-- Lineage 2 client UI window.
+--
+-- @author Nick
+--
+
 dofile(package.path .. "template.lua");
 local template = require("template");
 
+local USE_TUTORIAL_WIN = true;
 local PLUGIN_NAME = 'go';
 local TEMPLATES_FOLDER = GetDir() .. 'plugins\\Go'
 local CSV_FILE = GetDir() .. 'temp\\Go-Set.csv'
 local HtmlBuild = "";
 local ShowHtmlStatus = false;
 
-function OnCreate() this:RegisterCommand(PLUGIN_NAME, CommandChatType.CHAT_ALLY, CommandAccessLevel.ACCESS_ME); end;
+function OnCreate() 
+	this:RegisterCommand(PLUGIN_NAME, CommandChatType.CHAT_ALLY, CommandAccessLevel.ACCESS_ME); 
+	UnblockOutgoingPacket(0x86);
+end;
 
 function OnDestroy() this:UnregisterCommand(PLUGIN_NAME); end;
 
 _G["OnCommand_" .. PLUGIN_NAME] = function(vCommandChatType, vNick, vCommandParam)
-	local data = loadCoords();
+	local commands = {};
 	if (vCommandParam:GetCount() > 0) then
-		local command = vCommandParam:GetParam(0):GetStr(true);
+		for i = 0, vCommandParam:GetCount() - 1 do
+			table.insert(commands, vCommandParam:GetParam(i):GetStr(true))
+		end;
+	end;
+	processCommand(commands);
+end;
 
-		if (command == "jump") then
-			local id = tostring(vCommandParam:GetParam(1):GetStr(true));
+function processCommand(commands)
+	local data = loadCoords();
+	if #commands > 0 then
+		local page = commands[1];
+
+		if (page == "jump") then
+			local id = tostring(commands[2]);
+			local confirm = tonumber(commands[3]);
 			local rec = findCoordsById(data, id);
+
 			if (nil ~= rec) then
-				epicPort(rec.x, rec.y, rec.z);
+				if (1 == confirm) then
+					epicPort(rec);
+				else
+					return ShowJumpDialog(page, rec);
+				end;
 			end;
 		end;
 
-		if (command == "remove") then
-			local id = tostring(vCommandParam:GetParam(1):GetStr(true));
-			local confirmed = tonumber(vCommandParam:GetParam(2):GetInt());
-			if (1 == confirmed) then
+		if (page == "remove") then
+			local id = tostring(commands[2]);
+			local confirm = tonumber(commands[3]);
+			if (1 == confirm) then
 				removeElement(data, id);
 				data = loadCoords();
 			else
 				local rec = findCoordsById(data, id);
 				if (nil ~= rec) then
-					return ShowRemoveDialog("remove", rec);
+					return ShowRemoveDialog(page, rec);
 				end;
 			end
 		end;
 
-		if (command == "add") then
+		if (page == "add") then
 			return ShowAddDialog("add");
 		end;
 
-		if (command == "save") then
-			local name = tostring(vCommandParam:GetParam(1):GetStr(true));
+		if (page == "save") then
+			local name = tostring(commands[2]);
 			addElement(data, name);
 		end;
 	end;
 		
 	ShowMainDialog("main", data);
-end;
+end
 
-function OnLTick500ms()
+function OnLTick()
     if (ShowHtmlStatus) then
         ShowHtmlStatus = false;
-        ShowHtml(HtmlBuild);
+		if USE_TUTORIAL_WIN then
+			local packet = PacketBuilder();
+			packet:AppendString(HtmlBuild);
+			SendPacketToGame(0xA6, 0x00, packet);
+		else
+			ShowHtml(HtmlBuild);
+		end;
     end;
+end;
+
+function OnOutgoingPacket(packet) 
+	if USE_TUTORIAL_WIN then
+		local _id = packet:GetID();
+		
+		-- RequestTutorialPassCmdToServer
+		if (_id == 0x86) then
+			packet:SetOffset(1);
+			local link = packet:ReadString();
+
+			local commands = {};
+			for command in link:gmatch('([^%s]+)') do
+				commands[#commands + 1] = command:gsub("[\'/]", '');
+			end
+
+			if #commands > 0 then
+				local plugin = table.remove(commands, 1);
+				if plugin == PLUGIN_NAME then processCommand(commands); end;
+			end;
+		end;
+	end;
+end;
+
+function ShowJumpDialog(page, rec)
+	local ctx = {
+		["layout"] = {
+			["title"] = "Jump To Location",
+			["btn_label"] = "Back",
+			["btn_action"] = buildAction()
+		},
+		["rec"] = rec,
+		["jump_action"] = buildAction("jump", rec.id, 1)
+	};
+	ShowPage(page, ctx);
 end;
 
 function ShowRemoveDialog(page, rec)
@@ -104,7 +174,7 @@ function ShowMainDialog(page, data)
 			local id = data[c][1];
 			table.insert(ctx["rows"], {
 				["name"] = tostring(data[c][2]),
-				["action"] = buildAction("jump", id),
+				["action"] = buildAction("jump", id, 0),
 				["remove_action"] = buildAction("remove", id, 0)
 			});
 		end;
@@ -114,9 +184,10 @@ end;
 
 function ShowPage(page, context)
 	local layoutFile = TEMPLATES_FOLDER .. '\\layout.htm';
-	local file = TEMPLATES_FOLDER .. '\\' .. page .. '.view.htm';
+	local viewFile = TEMPLATES_FOLDER .. '\\' .. page .. '.view.htm';
 	local layout = template.new(layoutFile);
-	context.layout.view = template.render(file, context, "no-cache");
+	context.layout.view = template.render(viewFile, context, "no-cache");
+	context.layout.show_close = USE_TUTORIAL_WIN;
 
 	local html = THtmlGenerator("Teleport To Location");
 	html:AddHtml(layout:render(context.layout));
@@ -125,9 +196,9 @@ function ShowPage(page, context)
 end
 
 function buildAction(...)
-	local action = THtmlAction("/" .. PLUGIN_NAME);
 	local param = {...}
-   	for i = 1, #param do
+	local action = THtmlAction("/" .. PLUGIN_NAME);
+	for i = 1, #param do
 		if tostring(param[i]):sub(1, 1) == "$" then
 			action:AddParam(param[i], true);
 		else
@@ -137,7 +208,7 @@ function buildAction(...)
 	return action:GetAction();
 end
 
-function splitWithComma(str)
+function splitByComma(str)
 	local fields = {};
 	for field in str:gmatch('([^,]+)') do
 		fields[#fields + 1] = field;
@@ -168,7 +239,7 @@ function loadCoords()
 	if (f ~= nil and io.close(f)) then
 		for line in io.lines(CSV_FILE) do
 			if (nil ~= line) then
-				table.insert(data, splitWithComma(line));
+				table.insert(data, splitByComma(line));
 			end;
 		end
 	end;
@@ -198,13 +269,13 @@ function findCoordsById(data, id)
 	return nil;
 end;
 
-function epicPort(x, y, z)
-	ShowToClient(PLUGIN_NAME, string.format("Going to %d, %d, %d", x, y, z), 0x05); 
+function epicPort(rec)
+	ShowOnScreen(2, 1500, 1, string.format("Going to %s at %d, %d, %d", rec.name, rec.x, rec.y, rec.z));
 
 	QuestReply(string.format(
 		"_bbsscripts:Util:EpicGatekeeper %s %s %s 0", 
-		tostring(x), 
-		tostring(y), 
-		tostring(z))
+		tostring(rec.x), 
+		tostring(rec.y), 
+		tostring(rec.z))
 	);
 end;
