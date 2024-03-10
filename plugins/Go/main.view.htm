@@ -13,6 +13,39 @@
         </td>
     </tr>
 <!-- {% end %} -->
+    <!-- {% if total_pages > 1 then %} -->
+    <tr>
+        <td valign="top" align="left" height="18" width="20">&nbsp;</td>
+        <td align="center" width="220">
+            <table border="0" cellpadding="0" cellspacing="0" width="95">
+                <tr>
+                    <td valign="top" align="right" height="16" width="16">
+                        <!-- {% if nil ~= first_action then %} -->
+                        <button  action="{*first_action*}" width="16" height="16" back="L2UI_CT1.Button_DF_Left" fore="L2UI_CT1.Button_DF_Left_Over">
+                        <!-- {% end %} -->
+                    </td>
+                    <td valign="top" align="right" height="16" width="16">
+                        <!-- {% if nil ~= prev_action then %} -->
+                        <button action="{*prev_action*}" width="16" height="16" back="L2UI_CT1.Button_DF_Left" fore="L2UI_CT1.Button_DF_Left_Over">
+                        <!-- {% end %} -->
+                    </td>
+                    <td align="center" width="35">{{current_page}} of {{total_pages}}</td>
+                    <td valign="top" align="left" height="16" width="16">
+                        <!-- {% if nil ~= next_action then %} -->
+                        <button action="{*next_action*}" width="16" height="16" back="L2UI_CT1.Button_DF_Right" fore="L2UI_CT1.Button_DF_Right_Over">
+                        <!-- {% end %} -->
+                    </td>
+                    <td valign="top" align="right" height="16" width="16">
+                        <!-- {% if nil ~= last_action then %} -->
+                        <button action="{*last_action*}" width="16" height="16" back="L2UI_CT1.Button_DF_Right" fore="L2UI_CT1.Button_DF_Right_Over">
+                        <!-- {% end %} -->
+                    </td>
+                </tr>
+            </table>
+        </td>
+        <td valign="top" align="left" height="18" width="2">&nbsp;</td>
+    </tr>
+    <!-- {% end %} -->
 <!-- {% else %} -->
     <tr>
         <td align="center" width="220">

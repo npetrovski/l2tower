@@ -14,6 +14,7 @@ local USE_TUTORIAL_WIN = true;
 local PLUGIN_NAME = 'go';
 local TEMPLATES_FOLDER = GetDir() .. 'plugins\\Go'
 local CSV_FILE = GetDir() .. 'temp\\Go-Set.csv'
+local MAX_ITEMS_PER_PAGE = 10;
 local HtmlBuild = "";
 local ShowHtmlStatus = false;
 
@@ -36,6 +37,8 @@ end;
 
 function processCommand(commands)
 	local data = loadCoords();
+	local pageNum = 1;
+
 	if #commands > 0 then
 		local page = commands[1];
 
@@ -75,9 +78,13 @@ function processCommand(commands)
 			local name = tostring(commands[2]);
 			addElement(data, name);
 		end;
+
+		if (page == "main") then
+			pageNum = tonumber(commands[2]);
+		end;
 	end;
 		
-	ShowMainDialog("main", data);
+	ShowMainDialog("main", data, pageNum);
 end
 
 function OnLTick()
@@ -160,16 +167,46 @@ function ShowAddDialog(page, defaultName)
 	ShowPage(page, ctx);
 end;
 
-function ShowMainDialog(page, data)
+function ShowMainDialog(page, data, pageNum)
 	local ctx = {
 		["layout"] = {
 			["title"] = "Locations List",
 			["btn_label"] = "Add",
 			["btn_action"] = buildAction("add")
 		},
+		["total_pages"] = 1,
+		["first_action"] = nil,
+		["last_action"] = nil,
+		["prev_action"] = nil,
+		["next_action"] = nil,
 		["rows"] = {}
 	};
 	if (#data > 0) then
+		data = table.reverse(data);
+
+		-- Pagination
+		if #data > MAX_ITEMS_PER_PAGE then
+			local totalPages = math.ceil(#data / MAX_ITEMS_PER_PAGE);
+			ctx["total_pages"] = totalPages;
+			ctx["current_page"] = pageNum;
+
+			local startItem = ((pageNum - 1) * MAX_ITEMS_PER_PAGE) + 1;
+			local endItem = ((pageNum - 1) * MAX_ITEMS_PER_PAGE) + MAX_ITEMS_PER_PAGE;
+			if endItem > #data then endItem = #data; end;
+
+			if pageNum > 1 then 
+				ctx["first_action"] = buildAction(page, 1);
+				ctx["prev_action"] = buildAction(page, pageNum - 1);	
+			end;
+
+			if pageNum < totalPages then 
+				ctx["last_action"] = buildAction(page, totalPages);
+				ctx["next_action"] = buildAction(page, pageNum + 1);
+			end;
+
+			data = table.slice(data, startItem, endItem);
+		end;
+
 		for c = 1, #data do
 			local id = data[c][1];
 			table.insert(ctx["rows"], {
@@ -214,6 +251,21 @@ function splitByComma(str)
 		fields[#fields + 1] = field;
 	end
 	return fields;
+end
+
+function table.reverse(tbl)
+    for i = 1, math.floor(#tbl/2), 1 do
+        tbl[i], tbl[#tbl-i+1] = tbl[#tbl-i+1], tbl[i];
+    end
+    return tbl;
+end
+
+function table.slice(tbl, first, last)
+	local sliced = {};
+	for i = first or 1, last or #tbl, 1 do
+	  sliced[#sliced+1] = tbl[i];
+	end
+	return sliced;
 end
 
 function addElement(data, name)
