@@ -1,10 +1,27 @@
-<table border="0" cellpadding="0" cellspacing="0" width="260">
+<table border="0" cellpadding="0" cellspacing="0">
     <tr>
-        <td align="center">
-            <table border="0" cellspacing="0" width="240">
+        <td valign="top" align="center">
+            <table border="0" cellspacing="4" cellpadding="2" width="260">
+
                 <tr>
                     <td align="center">
-                        Please, confirm you want to delete <font color="ffff00">&quot;{{rec.name}}&quot;</font> location with coordinates <font color="882323">{{rec.x}}, {{rec.y}}, {{rec.z}}</font> from the list.
+                        <font color="adb885" name="__SystemEditBoxFont">{{rec.name}}</font>
+                    </td>
+                </tr>
+                <tr>
+                    <td align="center">
+                        <font color="df897a" name="CreditTextSmall">{{rec.x}}, {{rec.y}}, {{rec.z}}</font>
+                    </td>
+                </tr>
+            </table>
+        </td>
+    </tr>
+    <tr>
+        <td valign="top" align="center">
+            <table border="0" cellspacing="10" cellpadding="10" width="260">
+                <tr>
+                    <td align="center">
+                        <font color="ff0000">Please confirm removal of the location.</font>
                     </td>
                 </tr>
             </table>
@@ -12,10 +29,10 @@
     </tr>
     <tr>
         <td align="center">
-            <table border="0" cellspacing="20" width="240">
+            <table border="0" cellspacing="0" cellpadding="0" width="260">
                 <tr>
                     <td align="center">
-                        <button value="Confirm" action="{*remove_action*}" width="145" height="25" back="L2UI_CT1.Button_DF_Down" fore="L2UI_CT1.Button_DF">
+                        <button value="Delete" action="{*remove_action*}" width="145" height="25" back="L2UI_CT1.Button_DF_Down" fore="L2UI_CT1.Button_DF">
                     </td>
                 </tr>
             </table>

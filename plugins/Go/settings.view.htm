@@ -1,0 +1,45 @@
+<table border="0" cellpadding="4" cellspacing="2" width="260">
+<!-- {% for _, row in ipairs(rows) do %} -->
+    <!-- {% if type(row["value"]) == "boolean" then %} -->
+    <tr>
+        <td align="center">
+            <table border="0" cellpadding="0" cellspacing="0" width="240">
+                <tr>
+                    <td align="center" width="18">
+                        <!-- {% if true == row["value"] then %} -->
+                        <button action="{*row['cb_action']*}" width="16" height="16" back="L2UI.CheckBox_checked" fore="L2UI.CheckBox_checked">
+                        <!-- {% else %}-->
+                        <button action="{*row['cb_action']*}" width="16" height="16" back="L2UI.CheckBox" fore="L2UI.CheckBox"> 
+                        <!-- {% end %}-->
+                    </td>
+                    <td align="left">
+                        {{row["label"]}}
+                    </td>
+                </tr>
+            </table>
+        </td>
+    </tr>
+    <!-- {% end %} -->
+    <tr>
+        <td></td>
+    </tr>
+    <tr>
+        <td></td>
+    </tr>
+    <tr>
+        <td></td>
+    </tr>
+    <tr>
+        <td></td>
+    </tr>
+    <tr>
+        <td></td>
+    </tr>
+    <tr>
+        <td></td>
+    </tr>
+    <tr>
+        <td></td>
+    </tr>
+<!-- {% end %} -->
+</table>

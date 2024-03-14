@@ -10,13 +10,20 @@
 dofile(package.path .. "template.lua");
 local template = require("template");
 
-local USE_TUTORIAL_WIN = true;
 local PLUGIN_NAME = 'go';
 local TEMPLATES_FOLDER = GetDir() .. 'plugins\\Go'
 local CSV_FILE = GetDir() .. 'temp\\Go-Set.csv'
 local MAX_ITEMS_PER_PAGE = 10;
 local HtmlBuild = "";
 local ShowHtmlStatus = false;
+
+local PLUGIN_SETTINGS = {
+	["use_tutorial_win"] = {
+		["id"] = 1,
+		["label"] = "Use tutorial window",
+		["value"] = true
+	}
+};
 
 function OnCreate() 
 	this:RegisterCommand(PLUGIN_NAME, CommandChatType.CHAT_ALLY, CommandAccessLevel.ACCESS_ME); 
@@ -25,11 +32,11 @@ end;
 
 function OnDestroy() this:UnregisterCommand(PLUGIN_NAME); end;
 
-_G["OnCommand_" .. PLUGIN_NAME] = function(vCommandChatType, vNick, vCommandParam)
+_G["OnCommand_" .. PLUGIN_NAME] = function(vCommandChatType, vNick, vCommandParams)
 	local commands = {};
-	if (vCommandParam:GetCount() > 0) then
-		for i = 0, vCommandParam:GetCount() - 1 do
-			table.insert(commands, vCommandParam:GetParam(i):GetStr(true))
+	if (vCommandParams:GetCount() > 0) then
+		for i = 0, vCommandParams:GetCount() - 1 do
+			table.insert(commands, vCommandParams:GetParam(i):GetStr(true))
 		end;
 	end;
 	processCommand(commands);
@@ -79,6 +86,13 @@ function processCommand(commands)
 			addElement(data, name);
 		end;
 
+		if (page == "settings") then
+			if #commands > 2 then
+				return ShowSettingsDialog("settings", tostring(commands[2]), tostring(commands[3]));
+			end;
+			return ShowSettingsDialog("settings", setting, value);
+		end;
+
 		if (page == "main") then
 			pageNum = tonumber(commands[2]);
 		end;
@@ -90,7 +104,7 @@ end
 function OnLTick()
     if (ShowHtmlStatus) then
         ShowHtmlStatus = false;
-		if USE_TUTORIAL_WIN then
+		if true == getSetting("use_tutorial_win") then
 			local packet = PacketBuilder();
 			packet:AppendString(HtmlBuild);
 			SendPacketToGame(0xA6, 0x00, packet);
@@ -101,7 +115,7 @@ function OnLTick()
 end;
 
 function OnOutgoingPacket(packet) 
-	if USE_TUTORIAL_WIN then
+	if true == getSetting("use_tutorial_win") then
 		local _id = packet:GetID();
 		
 		-- RequestTutorialPassCmdToServer
@@ -118,6 +132,7 @@ function OnOutgoingPacket(packet)
 				local plugin = table.remove(commands, 1);
 				if plugin == PLUGIN_NAME then processCommand(commands); end;
 			end;
+			packet = nil;
 		end;
 	end;
 end;
@@ -130,7 +145,7 @@ function ShowJumpDialog(page, rec)
 			["btn_action"] = buildAction()
 		},
 		["rec"] = rec,
-		["jump_action"] = buildAction("jump", rec.id, 1)
+		["jump_action"] = buildAction(page, rec.id, 1)
 	};
 	ShowPage(page, ctx);
 end;
@@ -143,7 +158,7 @@ function ShowRemoveDialog(page, rec)
 			["btn_action"] = buildAction()
 		},
 		["rec"] = rec,
-		["remove_action"] = buildAction("remove", rec.id, 1)
+		["remove_action"] = buildAction(page, rec.id, 1)
 	};
 	ShowPage(page, ctx);
 end;
@@ -152,12 +167,12 @@ function ShowAddDialog(page, defaultName)
 	local loc = GetMe():GetLocation();
 	local ctx = {
 		["layout"] = {
-			["title"] = "Add Current Location",
+			["title"] = "Add Location",
 			["btn_label"] = "Back",
 			["btn_action"] = buildAction()
 		},
 		["save_action"] = buildAction("save", "$name"),
-		["refresh_action"] = buildAction("add"),
+		["refresh_action"] = buildAction(page),
 		["loc"] = {
 			x = math.floor(loc.X),
 			y = math.floor(loc.Y),
@@ -174,6 +189,10 @@ function ShowMainDialog(page, data, pageNum)
 			["btn_label"] = "Add",
 			["btn_action"] = buildAction("add")
 		},
+		["settings_action"] = buildAction("settings"),
+		["start_item"] = 0,
+		["end_item"] = 0,
+		["total_items"] = 0,
 		["total_pages"] = 1,
 		["first_action"] = nil,
 		["last_action"] = nil,
@@ -187,12 +206,16 @@ function ShowMainDialog(page, data, pageNum)
 		-- Pagination
 		if #data > MAX_ITEMS_PER_PAGE then
 			local totalPages = math.ceil(#data / MAX_ITEMS_PER_PAGE);
+			ctx["total_items"] = #data;
 			ctx["total_pages"] = totalPages;
 			ctx["current_page"] = pageNum;
 
 			local startItem = ((pageNum - 1) * MAX_ITEMS_PER_PAGE) + 1;
 			local endItem = ((pageNum - 1) * MAX_ITEMS_PER_PAGE) + MAX_ITEMS_PER_PAGE;
 			if endItem > #data then endItem = #data; end;
+
+			ctx["start_item"] = startItem;
+			ctx["end_item"] = endItem;
 
 			if pageNum > 1 then 
 				ctx["first_action"] = buildAction(page, 1);
@@ -219,18 +242,60 @@ function ShowMainDialog(page, data, pageNum)
 	ShowPage(page, ctx);
 end;
 
+function ShowSettingsDialog(page, settingId, val)
+
+	if nil ~= settingId and nil ~= val then
+		for i, v in pairs(PLUGIN_SETTINGS) do
+			if tostring(v["id"]) == settingId then 
+				PLUGIN_SETTINGS[i]["value"] = toboolean(val);
+			end;
+		end
+		
+		-- Exception where we also change the windows
+		if "1" == settingId and "0" == val then
+			closeTutorialWindow();
+		end;
+	end;
+
+	local ctx = {
+		["layout"] = {
+			["title"] = "Settings",
+			["btn_label"] = "Back",
+			["btn_action"] = buildAction()
+		},
+		["rows"] = {}
+	};
+
+	for k, v in pairs(PLUGIN_SETTINGS) do
+		table.insert(ctx["rows"], {
+			["label"] = tostring(v["label"]),
+			["value"] = v["value"],
+			["cb_action"] = buildAction(page, v["id"], true == v["value"] and 0 or 1)
+		});
+	end
+
+	ShowPage(page, ctx);
+end;
+
 function ShowPage(page, context)
 	local layoutFile = TEMPLATES_FOLDER .. '\\layout.htm';
 	local viewFile = TEMPLATES_FOLDER .. '\\' .. page .. '.view.htm';
 	local layout = template.new(layoutFile);
 	context.layout.view = template.render(viewFile, context, "no-cache");
-	context.layout.show_close = USE_TUTORIAL_WIN;
+	context.layout.show_close = true == getSetting("use_tutorial_win");
 
 	local html = THtmlGenerator("Teleport To Location");
 	html:AddHtml(layout:render(context.layout));
 	HtmlBuild = html:GetString();
 	ShowHtmlStatus = true;
 end
+
+function getSetting(name)
+	for i, v in pairs(PLUGIN_SETTINGS) do
+		if i == name then return v["value"]; end;
+	end
+	return nil;
+end;
 
 function buildAction(...)
 	local param = {...}
@@ -243,6 +308,39 @@ function buildAction(...)
 		end	
 	end
 	return action:GetAction();
+end
+
+function toboolean(str)
+	local TRUE = {
+		['1'] = true,
+		['t'] = true,
+		['T'] = true,
+		['on'] = true,
+		['On'] = true,
+		['ON'] = true,
+		['true'] = true,
+		['TRUE'] = true,
+		['True'] = true,
+	};
+	local FALSE = {
+		['0'] = false,
+		['f'] = false,
+		['F'] = false,
+		['off'] = false,
+		['Off'] = false,
+		['OFF'] = false,
+		['false'] = false,
+		['FALSE'] = false,
+		['False'] = false,
+	};
+
+    if TRUE[str] == true then
+        return true;
+    elseif FALSE[str] == false then
+        return false;
+    else
+        return nil;
+    end
 end
 
 function splitByComma(str)
@@ -301,7 +399,7 @@ end;
 function saveCoords(data)
     local file = assert(io.open(CSV_FILE, "w"));
 	for i = 1, #data do
-    	file:write(table.concat(data[i],",") .. "\n");
+    	file:write(table.concat(data[i], ",") .. "\n");
 	end;
     file:close();
 end;
@@ -319,6 +417,17 @@ function findCoordsById(data, id)
 	  end;
 	end;
 	return nil;
+end;
+
+function closeTutorialWindow()
+	-- TutorialEnableClientEvent
+	local tutorialEnableClientEvent = PacketBuilder();
+	tutorialEnableClientEvent:AppendInt(0, 4);
+	SendPacketToGame(0xA8, 0x00, tutorialEnableClientEvent);
+
+	-- TutorialClose
+	local tutorialClose = PacketBuilder();
+	SendPacketToGame(0xA9, 0x00, tutorialClose);
 end;
 
 function epicPort(rec)
