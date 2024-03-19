@@ -10,12 +10,34 @@
 dofile(package.path .. "template.lua");
 local template = require("template");
 
+dofile(package.path .. "murmurhash3.lua");
+local mmh3 = require("murmurhash3");
+
 local PLUGIN_NAME = 'go';
+local PLUGIN_TITLE = 'Teleport To Location';
 local TEMPLATES_FOLDER = GetDir() .. 'plugins\\Go'
 local CSV_FILE = GetDir() .. 'temp\\Go-Set.csv'
 local MAX_ITEMS_PER_PAGE = 10;
+
+local GAME_VER = 'H5';
 local HtmlBuild = "";
 local ShowHtmlStatus = false;
+
+local PACKET_IDS = {
+	["H5"] = {
+		["Client"] = {
+			["RequestBypassToServer"] = {0xA9, 0x00},
+			["RequestTutorialPassCmdToServer"] = {0x86, 0x00}
+		},
+		["Server"] = {
+			["TutorialShowHtml"] = {0xA6, 0x00},
+			["NpcHtmlMessage"] = {0x19, 0x00},
+			["TutorialEnableClientEvent"] = {0xA8, 0x00},
+			["TutorialClose"] = {0xA9, 0x00},
+			["PledgeCrest"] = {0x6A, 0x00},
+		}		
+	}
+};
 
 local PLUGIN_SETTINGS = {
 	["use_tutorial_win"] = {
@@ -25,6 +47,13 @@ local PLUGIN_SETTINGS = {
 	}
 };
 
+_G["getSetting"] = function (name)
+	for i, v in pairs(PLUGIN_SETTINGS) do
+		if i == name then return v["value"]; end;
+	end
+	return nil;
+end;
+
 function OnCreate() 
 	this:RegisterCommand(PLUGIN_NAME, CommandChatType.CHAT_ALLY, CommandAccessLevel.ACCESS_ME); 
 	UnblockOutgoingPacket(0x86);
@@ -32,88 +61,22 @@ end;
 
 function OnDestroy() this:UnregisterCommand(PLUGIN_NAME); end;
 
-_G["OnCommand_" .. PLUGIN_NAME] = function(vCommandChatType, vNick, vCommandParams)
+--
+-- Read bypass command sent from NPC window
+--
+_G["OnCommand_" .. PLUGIN_NAME] = function (vCommandChatType, vNick, vCommandParams)
 	local commands = {};
 	if (vCommandParams:GetCount() > 0) then
 		for i = 0, vCommandParams:GetCount() - 1 do
 			table.insert(commands, vCommandParams:GetParam(i):GetStr(true))
 		end;
 	end;
-	processCommand(commands);
+	ProcessCommand(commands);
 end;
 
-function processCommand(commands)
-	local data = loadCoords();
-	local pageNum = 1;
-
-	if #commands > 0 then
-		local page = commands[1];
-
-		if (page == "jump") then
-			local id = tostring(commands[2]);
-			local confirm = tonumber(commands[3]);
-			local rec = findCoordsById(data, id);
-
-			if (nil ~= rec) then
-				if (1 == confirm) then
-					epicPort(rec);
-				else
-					return ShowJumpDialog(page, rec);
-				end;
-			end;
-		end;
-
-		if (page == "remove") then
-			local id = tostring(commands[2]);
-			local confirm = tonumber(commands[3]);
-			if (1 == confirm) then
-				removeElement(data, id);
-				data = loadCoords();
-			else
-				local rec = findCoordsById(data, id);
-				if (nil ~= rec) then
-					return ShowRemoveDialog(page, rec);
-				end;
-			end
-		end;
-
-		if (page == "add") then
-			return ShowAddDialog("add");
-		end;
-
-		if (page == "save") then
-			local name = tostring(commands[2]);
-			addElement(data, name);
-		end;
-
-		if (page == "settings") then
-			if #commands > 2 then
-				return ShowSettingsDialog("settings", tostring(commands[2]), tostring(commands[3]));
-			end;
-			return ShowSettingsDialog("settings", setting, value);
-		end;
-
-		if (page == "main") then
-			pageNum = tonumber(commands[2]);
-		end;
-	end;
-		
-	ShowMainDialog("main", data, pageNum);
-end
-
-function OnLTick()
-    if (ShowHtmlStatus) then
-        ShowHtmlStatus = false;
-		if true == getSetting("use_tutorial_win") then
-			local packet = PacketBuilder();
-			packet:AppendString(HtmlBuild);
-			SendPacketToGame(0xA6, 0x00, packet);
-		else
-			ShowHtml(HtmlBuild);
-		end;
-    end;
-end;
-
+--
+-- Read bypass command sent from Tutorial window
+--
 function OnOutgoingPacket(packet) 
 	if true == getSetting("use_tutorial_win") then
 		local _id = packet:GetID();
@@ -130,12 +93,111 @@ function OnOutgoingPacket(packet)
 
 			if #commands > 0 then
 				local plugin = table.remove(commands, 1);
-				if plugin == PLUGIN_NAME then processCommand(commands); end;
+				if plugin == PLUGIN_NAME then ProcessCommand(commands); end;
 			end;
 			packet = nil;
 		end;
 	end;
 end;
+
+--
+-- Prcess a bypass command. In this case we target a specific window page
+--
+function ProcessCommand(args)
+	local page = (#args > 0) and table.remove(args, 1) or "index";
+
+	if type(_G["OnPage_" .. page]) == "function" then
+		_G["OnPage_" .. page](page, args);
+	end;
+end;
+
+--
+-- Show HTML window if ShowHtmlStatus is true - either NPC or Tutorial
+--
+function OnLTick()
+    if (ShowHtmlStatus) then
+        ShowHtmlStatus = false;
+		if true == getSetting("use_tutorial_win") then
+			-- TutorialShowHtml
+			local packet = PacketBuilder();
+			packet:AppendString(HtmlBuild);
+			SendPacketToGame(0xA6, 0x00, packet);
+		else
+			-- NpcHtmlMessage
+			local packet = PacketBuilder();
+			packet:AppendInt(0, 4);
+			packet:AppendString(HtmlBuild);
+			packet:AppendInt(0, 4);
+			SendPacketToGame(0x19, 0x00, packet);
+			--ShowHtml(HtmlBuild);
+		end;
+    end;
+end;
+
+--
+-- Controllers
+--
+
+function OnPage_index(page, args)
+	local data = loadCoords();
+	local pageNum = (#args > 0) and tonumber(args[1]) or 1;
+
+	ShowMainDialog(page, data, pageNum);
+end;
+
+function OnPage_jump(page, args)
+	local data = loadCoords();
+	local id = tostring(args[1]);
+	local confirm = tonumber(args[2]);
+	local rec = findCoordsById(data, id);
+
+	if (nil ~= rec) then
+		if (1 == confirm) then
+			RunEpicPort(rec);
+		else
+			ShowJumpDialog(page, rec);
+		end;
+	end;
+end;
+
+function OnPage_save(page, args)
+	local data = loadCoords();
+	if #args > 0 then
+		local name = tostring(args[1]);
+		addLocation(data, name);
+		data = loadCoords();
+	end;
+
+	ShowMainDialog("index", data, 1);
+end;
+
+function OnPage_add(page, args)
+	ShowAddDialog(page);
+end;
+
+function OnPage_settings(page, args)
+	if #args > 1 then
+		ShowSettingsDialog(page, tostring(args[1]), tostring(args[2]));
+	end;
+	ShowSettingsDialog(page, setting, value);
+end;
+
+function OnPage_remove(page, args)
+	local data = loadCoords();
+	local id = tostring(args[1]);
+	local confirm = tonumber(args[2]);
+	if (1 == confirm) then
+		removeLocation(data, id);
+		data = loadCoords();
+		ShowMainDialog("index", data, 1);
+	else
+		local rec = findCoordsById(data, id);
+		if (nil ~= rec) then
+			ShowRemoveDialog(page, rec);
+		end;
+	end;
+end;
+
 
 function ShowJumpDialog(page, rec)
 	local ctx = {
@@ -148,6 +210,10 @@ function ShowJumpDialog(page, rec)
 		["jump_action"] = buildAction(page, rec.id, 1)
 	};
 	ShowPage(page, ctx);
+
+	local vector = FVector(tonumber(rec.x),tonumber(rec.y), tonumber(rec.z));
+	ShowArrow(vector);
+	ShowTrace(vector);
 end;
 
 function ShowRemoveDialog(page, rec)
@@ -179,6 +245,41 @@ function ShowAddDialog(page, defaultName)
 			z = math.floor(loc.Z),
 		}
 	};
+	ShowPage(page, ctx);
+end;
+
+function ShowSettingsDialog(page, settingId, val)
+
+	if nil ~= settingId and nil ~= val then
+		for i, v in pairs(PLUGIN_SETTINGS) do
+			if tostring(v["id"]) == settingId then 
+				PLUGIN_SETTINGS[i]["value"] = toboolean(val);
+			end;
+		end
+		
+		-- Exception where we also change the windows
+		if "1" == settingId and "0" == val then
+			CloseTutorialWindow();
+		end;
+	end;
+
+	local ctx = {
+		["layout"] = {
+			["title"] = "Settings",
+			["btn_label"] = "Back",
+			["btn_action"] = buildAction()
+		},
+		["rows"] = {}
+	};
+
+	for k, v in pairs(PLUGIN_SETTINGS) do
+		table.insert(ctx["rows"], {
+			["label"] = tostring(v["label"]),
+			["value"] = v["value"],
+			["cb_action"] = buildAction(page, v["id"], true == v["value"] and 0 or 1)
+		});
+	end
+
 	ShowPage(page, ctx);
 end;
 
@@ -242,41 +343,6 @@ function ShowMainDialog(page, data, pageNum)
 	ShowPage(page, ctx);
 end;
 
-function ShowSettingsDialog(page, settingId, val)
-
-	if nil ~= settingId and nil ~= val then
-		for i, v in pairs(PLUGIN_SETTINGS) do
-			if tostring(v["id"]) == settingId then 
-				PLUGIN_SETTINGS[i]["value"] = toboolean(val);
-			end;
-		end
-		
-		-- Exception where we also change the windows
-		if "1" == settingId and "0" == val then
-			closeTutorialWindow();
-		end;
-	end;
-
-	local ctx = {
-		["layout"] = {
-			["title"] = "Settings",
-			["btn_label"] = "Back",
-			["btn_action"] = buildAction()
-		},
-		["rows"] = {}
-	};
-
-	for k, v in pairs(PLUGIN_SETTINGS) do
-		table.insert(ctx["rows"], {
-			["label"] = tostring(v["label"]),
-			["value"] = v["value"],
-			["cb_action"] = buildAction(page, v["id"], true == v["value"] and 0 or 1)
-		});
-	end
-
-	ShowPage(page, ctx);
-end;
-
 function ShowPage(page, context)
 	local layoutFile = TEMPLATES_FOLDER .. '\\layout.htm';
 	local viewFile = TEMPLATES_FOLDER .. '\\' .. page .. '.view.htm';
@@ -284,18 +350,12 @@ function ShowPage(page, context)
 	context.layout.view = template.render(viewFile, context, "no-cache");
 	context.layout.show_close = true == getSetting("use_tutorial_win");
 
-	local html = THtmlGenerator("Teleport To Location");
+	local html = THtmlGenerator(PLUGIN_TITLE);
 	html:AddHtml(layout:render(context.layout));
 	HtmlBuild = html:GetString();
 	ShowHtmlStatus = true;
 end
 
-function getSetting(name)
-	for i, v in pairs(PLUGIN_SETTINGS) do
-		if i == name then return v["value"]; end;
-	end
-	return nil;
-end;
 
 function buildAction(...)
 	local param = {...}
@@ -305,7 +365,7 @@ function buildAction(...)
 			action:AddParam(param[i], true);
 		else
 			action:AddParam(param[i]);
-		end	
+		end;
 	end
 	return action:GetAction();
 end
@@ -343,7 +403,7 @@ function toboolean(str)
     end
 end
 
-function splitByComma(str)
+function table.fromString(str)
 	local fields = {};
 	for field in str:gmatch('([^,]+)') do
 		fields[#fields + 1] = field;
@@ -366,13 +426,13 @@ function table.slice(tbl, first, last)
 	return sliced;
 end
 
-function addElement(data, name)
+function addLocation(data, name)
 	local loc = GetMe():GetLocation();
 	table.insert(data, {#data+1, name, math.floor(loc.X), math.floor(loc.Y),  math.floor(loc.Z) });
 	saveCoords(data);
 end
 
-function removeElement(data, id)
+function removeLocation(data, id)
 	for i = 1, #data do
 		if (nil ~= data[i][1] and data[i][1] == id) then
 			table.remove(data, i);
@@ -384,12 +444,12 @@ function removeElement(data, id)
 end
 
 function loadCoords()
-	data = {};
+	local data = {};
 	local f = io.open(CSV_FILE, "r")
 	if (f ~= nil and io.close(f)) then
 		for line in io.lines(CSV_FILE) do
 			if (nil ~= line) then
-				table.insert(data, splitByComma(line));
+				table.insert(data, table.fromString(line));
 			end;
 		end
 	end;
@@ -419,7 +479,10 @@ function findCoordsById(data, id)
 	return nil;
 end;
 
-function closeTutorialWindow()
+--
+-- Force close the Tutorial window
+--
+function CloseTutorialWindow()
 	-- TutorialEnableClientEvent
 	local tutorialEnableClientEvent = PacketBuilder();
 	tutorialEnableClientEvent:AppendInt(0, 4);
@@ -430,7 +493,10 @@ function closeTutorialWindow()
 	SendPacketToGame(0xA9, 0x00, tutorialClose);
 end;
 
-function epicPort(rec)
+--
+-- This most probably wont work on other servers, but it's just an example
+--
+function RunEpicPort(rec)
 	ShowOnScreen(2, 1500, 1, string.format("Going to %s at %d, %d, %d", rec.name, rec.x, rec.y, rec.z));
 
 	QuestReply(string.format(
@@ -440,3 +506,53 @@ function epicPort(rec)
 		tostring(rec.z))
 	);
 end;
+
+---------------------------------------------
+-------  Images
+---------------------------------------------
+
+local IMG_CACHE = {};
+local SERVER_ID = 1; -- @todo obtain this dynamically
+
+--
+-- Read a binary file to a hex string
+--
+function readBinFile(path)
+	local file = io.open(path, "rb")
+	if not file then return nil end
+	local content = file:read("*all")
+	file:close()
+	return (content:gsub('.', function(c)
+		return string.format('%02X', string.byte(c))
+	end))
+end;
+
+function img(name)
+
+	if nil ~= IMG_CACHE[name] then
+		return IMG_CACHE[name];
+	else
+		local imgFileName = string.format(TEMPLATES_FOLDER .. '\\img\\%s.dds', tostring(name));
+		local bin = readBinFile(imgFileName);
+		if nil ~= bin then
+			local crestId = math.ceil(mmh3.murmurhash3(name) / 10) + 1000000000;
+
+			-- PledgeCrest
+			-- Send image to game client as a clan crest
+			local packet = PacketBuilder();
+			packet:AppendInt(crestId, 4);
+			packet:AppendInt(#bin / 2, 4); -- size
+			packet:AppendDataFromHexString(bin); --binary
+			SendPacketToGame(0x6A, 0x00, packet);
+	
+			local crestName = string.format("Crest.crest_%s_%s", tostring(SERVER_ID), tostring(crestId));
+
+			-- Add the crest to the cache
+			IMG_CACHE[name] = crestName;
+			
+			return crestName;
+		end;
+	end
+
+	return "";
+end

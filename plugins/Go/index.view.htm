@@ -1,3 +1,8 @@
+{-showing-}
+<!-- {% if total_items > 0 then %} -->
+<font color="999999" name="CreditTextSmall">Displaying {{start_item}} to {{end_item}} of {{total_items}} items</font>
+<!-- {% end %} -->
+{-showing-}
 {-pagingation-}
 <!-- {% if total_pages > 1 then %} -->
 <table border="0" cellpadding="0" cellspacing="0" width="95">
@@ -29,8 +34,18 @@
 </table>
 <!-- {% end %} -->
 {-pagingation-}
-
 <table border="0" cellpadding="4" cellspacing="2">
+    <!-- {% if total_items > 0 then %} -->
+    <tr>
+        <td valign="top" align="left" height="18" width="20">&nbsp;</td>
+        <td align="center" width="220">
+        <!-- {% if blocks.showing then %} -->
+        {*blocks.showing*}
+        <!-- {% end %} -->
+        </td>
+        <td valign="top" align="left" height="18" width="2">&nbsp;</td>
+    </tr>
+    <!-- {% end %} -->
     <tr>
         <td valign="top" align="left" height="18" width="20">&nbsp;</td>
         <td align="center" width="220">
@@ -46,7 +61,7 @@
 <!-- {% for _, row in ipairs(rows) do %} -->
     <tr>
         <td valign="top" align="left" height="18" width="20">
-            <img src="L2UI_CT1.Button_DF_Right_Down" width="16" height="16">
+            <img src="{*img 'fw'*}" width="16" height="16">
         </td>
         <td align="left" width="200">
             <font color="" name=""><a action="{*row['action']*}">{{row['name']}}</a></font>
@@ -71,7 +86,9 @@
     <tr>
         <td valign="top" align="left" height="18" width="20">&nbsp;</td>
         <td align="center" width="220">
-            <font color="999999" name="CreditTextSmall">Displaying {{start_item}} to {{end_item}} of {{total_items}} items</font>
+        <!-- {% if blocks.showing then %} -->
+        {*blocks.showing*}
+        <!-- {% end %} -->
         </td>
         <td valign="top" align="left" height="18" width="2">&nbsp;</td>
     </tr>
