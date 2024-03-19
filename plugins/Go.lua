@@ -47,7 +47,7 @@ local PLUGIN_SETTINGS = {
 	}
 };
 
-_G["getSetting"] = function (name)
+function getSetting(name)
 	for i, v in pairs(PLUGIN_SETTINGS) do
 		if i == name then return v["value"]; end;
 	end
